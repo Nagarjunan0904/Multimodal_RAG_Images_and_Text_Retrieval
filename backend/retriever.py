@@ -1,4 +1,127 @@
+from pathlib import Path
+from typing import Any
+
+import torch
+from PIL import Image
+from qdrant_client.models import PointStruct
+
+from backend.ingest import ingest_pdf
+from backend.models.config import Settings
 from backend.models.schemas import Source
+
+
+class MultimodalIndexer:
+    def __init__(self, qdrant_client: Any, settings: Settings | None = None):
+        from colpali_engine.models import ColPali, ColPaliProcessor
+        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+        self.settings = settings or Settings()
+        self.qdrant_client = qdrant_client
+        self.model = ColPali.from_pretrained(self.settings.colpali_model)
+        self.processor = ColPaliProcessor.from_pretrained(self.settings.colpali_model)
+        self.model.to(self.settings.embed_device)
+        self.model.eval()
+        self.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-m3")
+
+    def index_page_image(
+        self,
+        image: Image.Image,
+        doc_id: str,
+        page_num: int,
+        image_path: str,
+    ) -> None:
+        inputs = self.processor.process_images([image])
+        inputs = self._move_to_device(inputs)
+
+        with torch.no_grad():
+            outputs = self.model(**inputs) if isinstance(inputs, dict) else self.model(inputs)
+
+        embeddings = self._first_batch_item(outputs)
+        patch_embeddings = embeddings.detach().cpu().float().tolist()
+
+        self.qdrant_client.upsert(
+            collection_name=self.settings.image_collection,
+            points=[
+                PointStruct(
+                    id=abs(hash(f"{doc_id}_{page_num}")),
+                    vector=patch_embeddings,
+                    payload={
+                        "doc_id": doc_id,
+                        "page_num": page_num,
+                        "image_path": image_path,
+                    },
+                )
+            ],
+        )
+
+    def index_text_chunk(self, chunk: dict[str, Any], doc_id: str) -> None:
+        embedding = self.embed_model.get_text_embedding(chunk["text"])
+
+        self.qdrant_client.upsert(
+            collection_name=self.settings.text_collection,
+            points=[
+                PointStruct(
+                    id=abs(hash(chunk["chunk_id"])),
+                    vector=list(embedding),
+                    payload={
+                        "doc_id": doc_id,
+                        "page_num": chunk["page_num"],
+                        "chunk_id": chunk["chunk_id"],
+                        "text": chunk["text"],
+                    },
+                )
+            ],
+        )
+
+    def _move_to_device(self, inputs: Any) -> Any:
+        if hasattr(inputs, "to"):
+            return inputs.to(self.settings.embed_device)
+
+        if isinstance(inputs, dict):
+            return {
+                key: value.to(self.settings.embed_device) if hasattr(value, "to") else value
+                for key, value in inputs.items()
+            }
+
+        return inputs
+
+    @staticmethod
+    def _first_batch_item(outputs: Any) -> torch.Tensor:
+        if hasattr(outputs, "last_hidden_state"):
+            outputs = outputs.last_hidden_state
+        elif isinstance(outputs, (list, tuple)):
+            outputs = outputs[0]
+
+        if not isinstance(outputs, torch.Tensor):
+            outputs = torch.as_tensor(outputs)
+
+        return outputs[0] if outputs.ndim == 3 else outputs
+
+
+def ingest_and_index(
+    file_bytes: bytes,
+    doc_id: str,
+    qdrant_client: Any,
+    settings: Settings,
+) -> dict[str, Any]:
+    result = ingest_pdf(file_bytes, doc_id)
+    indexer = MultimodalIndexer(qdrant_client=qdrant_client, settings=settings)
+
+    for image_path in result["page_image_paths"]:
+        path = Path(image_path)
+        page_num = int(path.stem.replace("page_", ""))
+        with Image.open(path) as image:
+            indexer.index_page_image(
+                image=image,
+                doc_id=doc_id,
+                page_num=page_num,
+                image_path=str(path),
+            )
+
+    for chunk in result["text_chunks"]:
+        indexer.index_text_chunk(chunk=chunk, doc_id=doc_id)
+
+    return result
 
 
 def retrieve(query: str, top_k: int = 5) -> list[Source]:
