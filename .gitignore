@@ -1,0 +1,37 @@
+# .gitignore
+
+# Secrets
+.env
+
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# SQLite eval log
+*.db
+
+# Rendered PDF page images (regenerated on ingest)
+tmp/
+tmp/pages/
+
+# Node / Frontend
+node_modules/
+dist/
+
+# VS Code
+.vscode/
+
+# Byte-compiled / optimized files
+*.pyd
+
+# Distribution / packaging
+*.egg-info/
+build/
