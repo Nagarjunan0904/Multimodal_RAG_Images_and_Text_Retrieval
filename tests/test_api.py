@@ -1,4 +1,5 @@
 import importlib
+import json
 import sys
 import types
 from types import SimpleNamespace
@@ -47,6 +48,22 @@ def test_query_endpoint(client: TestClient) -> None:
     assert "sources" in body
     assert "latency_ms" in body
     assert "used_image" in body
+
+
+def test_query_stream_endpoint(client: TestClient) -> None:
+    with client.stream(
+        "GET",
+        "/query/stream",
+        params={"query": "What does the figure show?", "doc_id": "doc"},
+    ) as response:
+        assert response.status_code == 200
+        event_types = [
+            json.loads(line.removeprefix("data: "))["type"]
+            for line in response.iter_lines()
+            if line.startswith("data: ")
+        ]
+
+    assert {"status", "sources", "token", "done"}.issubset(event_types)
 
 
 def test_documents_endpoint(client: TestClient) -> None:
@@ -118,6 +135,13 @@ def _retriever_module() -> types.ModuleType:
 
 def _generator_module() -> types.ModuleType:
     async def fake_generate_answer(query, retrieval_result, stream=False):
+        if stream:
+            async def token_stream():
+                yield "Generated "
+                yield "answer."
+
+            return token_stream()
+
         return GenerationResponse(
             answer="Generated answer.",
             sources=[{"page_num": 1, "doc_id": "doc"}],

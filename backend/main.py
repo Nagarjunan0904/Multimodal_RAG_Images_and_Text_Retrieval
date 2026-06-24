@@ -1,9 +1,11 @@
 from pathlib import Path
+import json
 import time
 import uuid
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from backend.generator import generate_answer
@@ -66,6 +68,33 @@ async def query(request: QueryRequest) -> QueryResponse:
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/query/stream")
+async def query_stream(query: str, doc_id: str) -> StreamingResponse:
+    async def event_stream():
+        try:
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Retrieving relevant pages...'})}\n\n"
+
+            start = time.perf_counter()
+            result = retriever.retrieve(query, top_k=5, doc_id=doc_id)
+
+            yield f"data: {json.dumps({'type': 'sources', 'pages': result.top_pages, 'chunks': result.top_chunks})}\n\n"
+
+            token_gen = await generate_answer(query, result, stream=True)
+            async for token in token_gen:
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+            latency_ms = (time.perf_counter() - start) * 1000
+            yield f"data: {json.dumps({'type': 'done', 'latency_ms': round(latency_ms, 2)})}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/documents")
