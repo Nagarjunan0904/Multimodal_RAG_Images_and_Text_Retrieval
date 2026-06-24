@@ -3,7 +3,7 @@ from typing import Any
 
 import torch
 from PIL import Image
-from qdrant_client.models import PointStruct
+from qdrant_client.models import FieldCondition, Filter, MatchValue, PointStruct
 from tqdm import tqdm
 
 from backend.ingest import ingest_pdf
@@ -82,6 +82,100 @@ class MultimodalIndexer:
                 )
             ],
         )
+
+    def _move_to_device(self, inputs: Any) -> Any:
+        device = self.settings.embed_device
+        dtype = torch.bfloat16
+
+        if hasattr(inputs, "to"):
+            inputs = inputs.to(device)
+            return {
+                key: value.to(dtype) if value.dtype.is_floating_point else value
+                for key, value in inputs.items()
+            }
+
+        if isinstance(inputs, dict):
+            return {
+                key: value.to(device).to(dtype)
+                if hasattr(value, "to") and value.dtype.is_floating_point
+                else value.to(device)
+                if hasattr(value, "to")
+                else value
+                for key, value in inputs.items()
+            }
+
+        return inputs
+
+    @staticmethod
+    def _first_batch_item(outputs: Any) -> torch.Tensor:
+        if hasattr(outputs, "last_hidden_state"):
+            outputs = outputs.last_hidden_state
+        elif isinstance(outputs, (list, tuple)):
+            outputs = outputs[0]
+
+        if not isinstance(outputs, torch.Tensor):
+            outputs = torch.as_tensor(outputs)
+
+        return outputs[0] if outputs.ndim == 3 else outputs
+
+
+class MultimodalRetriever:
+    def __init__(self, qdrant_client: Any, settings: Settings | None = None):
+        from colpali_engine.models import ColPali, ColPaliProcessor
+
+        self.settings = settings or Settings()
+        self.qdrant_client = qdrant_client
+        self.model = ColPali.from_pretrained(
+            self.settings.colpali_model,
+            torch_dtype=torch.bfloat16,
+            device_map=self.settings.embed_device,
+            low_cpu_mem_usage=True,
+        )
+        self.processor = ColPaliProcessor.from_pretrained(self.settings.colpali_model)
+        self.model.eval()
+
+    def retrieve_images(
+        self,
+        query: str,
+        top_k: int = 5,
+        doc_id: str | None = None,
+    ) -> list[dict]:
+        inputs = self.processor.process_queries([query])
+        inputs = self._move_to_device(inputs)
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+
+        query_embedding = self._first_batch_item(outputs).detach().cpu().float().tolist()
+        query_filter = None
+        if doc_id is not None:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="doc_id",
+                        match=MatchValue(value=doc_id),
+                    )
+                ]
+            )
+
+        response = self.qdrant_client.query_points(
+            collection_name=self.settings.image_collection,
+            query=query_embedding,
+            query_filter=query_filter,
+            with_payload=True,
+            limit=top_k,
+        )
+
+        points = getattr(response, "points", response)
+        return [
+            {
+                "page_num": point.payload["page_num"],
+                "image_path": point.payload["image_path"],
+                "score": point.score,
+                "doc_id": point.payload["doc_id"],
+            }
+            for point in points
+        ]
 
     def _move_to_device(self, inputs: Any) -> Any:
         device = self.settings.embed_device
