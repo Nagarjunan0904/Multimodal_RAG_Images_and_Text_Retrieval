@@ -1,105 +1,158 @@
-from contextlib import asynccontextmanager
-from typing import Any
+from pathlib import Path
+import time
+import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from backend.models.schemas import IngestRequest, IngestResponse, QueryRequest, QueryResponse
-from backend.qdrant_client import ensure_collections, get_qdrant_client
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    client = get_qdrant_client()
-    ensure_collections(client)
-    app.state.qdrant_client = client
-    yield
+from backend.generator import generate_answer
+from backend.models.config import Settings
+from backend.models.schemas import IngestResponse, QueryRequest, QueryResponse
+from backend.qdrant_client import get_qdrant_client
+from backend.retriever import MultimodalRetriever, ingest_and_index
+from eval.logger import EvalLogger
 
 
-app = FastAPI(title="Multimodal RAG API", lifespan=lifespan)
+app = FastAPI(title="Multimodal RAG API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:5173", "*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+settings = Settings()
+qdrant = get_qdrant_client(settings)
+retriever = MultimodalRetriever(qdrant_client=qdrant, settings=settings)
+logger = EvalLogger(db_path=Path("eval.db"))
 
 
 @app.post("/ingest", response_model=IngestResponse)
-def ingest(request: IngestRequest) -> IngestResponse:
-    return IngestResponse()
+async def ingest(file: UploadFile) -> IngestResponse:
+    try:
+        file_bytes = await file.read()
+        doc_id = str(uuid.uuid4())
+        result = ingest_and_index(file_bytes, doc_id, qdrant, settings)
+        return IngestResponse(
+            doc_id=doc_id,
+            num_pages=result["num_pages"],
+            num_chunks=result["num_chunks"],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.post("/query", response_model=QueryResponse)
-def query(request: QueryRequest) -> QueryResponse:
-    return QueryResponse()
+async def query(request: QueryRequest) -> QueryResponse:
+    try:
+        if not _doc_id_exists(request.doc_id):
+            raise HTTPException(status_code=422, detail="doc_id not found")
+
+        start = time.perf_counter()
+        result = retriever.retrieve(request.query, top_k=5, doc_id=request.doc_id)
+        gen = await generate_answer(request.query, result, stream=False)
+        latency_ms = (time.perf_counter() - start) * 1000
+        logger.log(request.query, request.doc_id, result, latency_ms, gen.used_image)
+
+        return QueryResponse(
+            answer=gen.answer,
+            sources=gen.sources,
+            latency_ms=latency_ms,
+            used_image=gen.used_image,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/documents")
-def documents() -> list[Any]:
-    return []
+def documents() -> dict[str, list[str]]:
+    doc_ids = set()
+    offset = None
+
+    while True:
+        points, offset = qdrant.scroll(
+            collection_name=settings.image_collection,
+            with_payload=True,
+            offset=offset,
+        )
+        doc_ids.update(
+            point.payload["doc_id"]
+            for point in points
+            if point.payload and "doc_id" in point.payload
+        )
+        if offset is None:
+            break
+
+    doc_ids = sorted(doc_ids)
+    return {"documents": doc_ids}
 
 
 @app.get("/eval")
-def eval_status() -> dict[str, Any]:
-    return {}
+def eval_stats() -> dict:
+    return logger.get_stats()
+
+
+def _doc_id_exists(doc_id: str) -> bool:
+    points, _ = qdrant.scroll(
+        collection_name=settings.image_collection,
+        scroll_filter=Filter(
+            must=[
+                FieldCondition(
+                    key="doc_id",
+                    match=MatchValue(value=doc_id),
+                )
+            ]
+        ),
+        limit=1,
+        with_payload=True,
+    )
+    return bool(points)
 
 
 if __name__ == "__main__":
     import sys
-    import time
-    from pathlib import Path
-    from uuid import uuid4
 
     from dotenv import load_dotenv
 
-    from backend.models.config import Settings
-    from backend.qdrant_client import ensure_collections, get_qdrant_client
-    from backend.retriever import ingest_and_index
+    from backend.qdrant_client import ensure_collections
 
     if len(sys.argv) < 2:
         print("Error: missing PDF path. Usage: python -m backend.main <path-to-pdf>")
         raise SystemExit(1)
 
     load_dotenv()
-
-    client = get_qdrant_client()
-    ensure_collections(client)
+    ensure_collections(qdrant)
 
     pdf_path = Path(sys.argv[1])
     file_bytes = pdf_path.read_bytes()
 
-    doc_id = str(uuid4())
+    doc_id = str(uuid.uuid4())
     print(f"doc_id: {doc_id}")
 
-    settings = Settings()
     start = time.perf_counter()
-    result = ingest_and_index(file_bytes, doc_id, client, settings)
+    result = ingest_and_index(file_bytes, doc_id, qdrant, settings)
     elapsed = time.perf_counter() - start
 
     print(f"Pages indexed:      {result['num_pages']}")
     print(f"Text chunks indexed:{len(result['text_chunks'])}")
     print(f"Time elapsed:       {elapsed:.2f}s")
 
-    img_count = client.count(collection_name=settings.image_collection).count
-    txt_count = client.count(collection_name=settings.text_collection).count
+    img_count = qdrant.count(collection_name=settings.image_collection).count
+    txt_count = qdrant.count(collection_name=settings.text_collection).count
     print(f"Qdrant image_index points: {img_count}")
     print(f"Qdrant text_index points:  {txt_count}")
     if img_count < result["num_pages"]:
         print(f"WARNING: Expected at least {result['num_pages']} image points, got {img_count}")
     else:
-        print(f"✅ image_index OK ({img_count} points)")
+        print(f"image_index OK ({img_count} points)")
 
     if txt_count < len(result["text_chunks"]):
         print(
             f"WARNING: Expected at least {len(result['text_chunks'])} text points, got {txt_count}"
         )
     else:
-        print(f"✅ text_index OK ({txt_count} points)")
+        print(f"text_index OK ({txt_count} points)")

@@ -11,8 +11,8 @@ from qdrant_client.models import (
 from backend.models.config import Settings
 
 
-def get_qdrant_client() -> QdrantClient:
-    settings = Settings()
+def get_qdrant_client(settings: Settings | None = None) -> QdrantClient:
+    settings = settings or Settings()
     kwargs: dict[str, str] = {"url": settings.qdrant_url}
 
     if settings.qdrant_api_key:

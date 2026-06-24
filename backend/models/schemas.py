@@ -14,8 +14,8 @@ class IngestResponse(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    query: str = ""
-    top_k: int = Field(default=5, ge=1)
+    query: str
+    doc_id: str
 
 
 class Source(BaseModel):
@@ -36,6 +36,7 @@ class GenerationResponse(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    answer: str = ""
-    sources: list[Source] = Field(default_factory=list)
-    latency_ms: int = 0
+    answer: str
+    sources: list[dict]
+    latency_ms: float
+    used_image: bool
