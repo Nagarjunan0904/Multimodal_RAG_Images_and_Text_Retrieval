@@ -4,6 +4,7 @@ from typing import Any
 import torch
 from PIL import Image
 from qdrant_client.models import PointStruct
+from tqdm import tqdm
 
 from backend.ingest import ingest_pdf
 from backend.models.config import Settings
@@ -13,15 +14,24 @@ from backend.models.schemas import Source
 class MultimodalIndexer:
     def __init__(self, qdrant_client: Any, settings: Settings | None = None):
         from colpali_engine.models import ColPali, ColPaliProcessor
-        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
         self.settings = settings or Settings()
         self.qdrant_client = qdrant_client
-        self.model = ColPali.from_pretrained(self.settings.colpali_model)
+        self.model = ColPali.from_pretrained(
+            self.settings.colpali_model,
+            torch_dtype=torch.bfloat16,
+            device_map=self.settings.embed_device,
+            low_cpu_mem_usage=True,
+        )
         self.processor = ColPaliProcessor.from_pretrained(self.settings.colpali_model)
-        self.model.to(self.settings.embed_device)
         self.model.eval()
-        self.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-m3")
+
+        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+        self.embed_model = HuggingFaceEmbedding(
+            model_name="BAAI/bge-m3",
+            cache_folder=str(Path(self.settings.hf_home) / "hub"),
+        )
 
     def index_page_image(
         self,
@@ -34,7 +44,7 @@ class MultimodalIndexer:
         inputs = self._move_to_device(inputs)
 
         with torch.no_grad():
-            outputs = self.model(**inputs) if isinstance(inputs, dict) else self.model(inputs)
+            outputs = self.model(**inputs)
 
         embeddings = self._first_batch_item(outputs)
         patch_embeddings = embeddings.detach().cpu().float().tolist()
@@ -74,12 +84,23 @@ class MultimodalIndexer:
         )
 
     def _move_to_device(self, inputs: Any) -> Any:
+        device = self.settings.embed_device
+        dtype = torch.bfloat16
+
         if hasattr(inputs, "to"):
-            return inputs.to(self.settings.embed_device)
+            inputs = inputs.to(device)
+            return {
+                key: value.to(dtype) if value.dtype.is_floating_point else value
+                for key, value in inputs.items()
+            }
 
         if isinstance(inputs, dict):
             return {
-                key: value.to(self.settings.embed_device) if hasattr(value, "to") else value
+                key: value.to(device).to(dtype)
+                if hasattr(value, "to") and value.dtype.is_floating_point
+                else value.to(device)
+                if hasattr(value, "to")
+                else value
                 for key, value in inputs.items()
             }
 
@@ -107,7 +128,7 @@ def ingest_and_index(
     result = ingest_pdf(file_bytes, doc_id)
     indexer = MultimodalIndexer(qdrant_client=qdrant_client, settings=settings)
 
-    for image_path in result["page_image_paths"]:
+    for image_path in tqdm(result["page_image_paths"], desc="Indexing pages"):
         path = Path(image_path)
         page_num = int(path.stem.replace("page_", ""))
         with Image.open(path) as image:

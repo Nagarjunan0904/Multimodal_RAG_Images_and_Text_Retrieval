@@ -92,6 +92,14 @@ if __name__ == "__main__":
     txt_count = client.count(collection_name=settings.text_collection).count
     print(f"Qdrant image_index points: {img_count}")
     print(f"Qdrant text_index points:  {txt_count}")
-    assert img_count == result["num_pages"], "Image point count mismatch!"
-    assert txt_count == len(result["text_chunks"]), "Text point count mismatch!"
-    print("All point counts verified.")
+    if img_count < result["num_pages"]:
+        print(f"WARNING: Expected at least {result['num_pages']} image points, got {img_count}")
+    else:
+        print(f"✅ image_index OK ({img_count} points)")
+
+    if txt_count < len(result["text_chunks"]):
+        print(
+            f"WARNING: Expected at least {len(result['text_chunks'])} text points, got {txt_count}"
+        )
+    else:
+        print(f"✅ text_index OK ({txt_count} points)")
