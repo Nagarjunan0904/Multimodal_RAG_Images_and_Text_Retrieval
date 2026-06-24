@@ -29,6 +29,12 @@ class RetrievalResult(BaseModel):
     top_chunks: list[dict]
 
 
+class GenerationResponse(BaseModel):
+    answer: str
+    sources: list[dict]
+    used_image: bool
+
+
 class QueryResponse(BaseModel):
     answer: str = ""
     sources: list[Source] = Field(default_factory=list)
