@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from backend.ingest import ingest_pdf
 from backend.models.config import Settings
-from backend.models.schemas import Source
+from backend.models.schemas import RetrievalResult, Source
 
 
 class MultimodalIndexer:
@@ -134,6 +134,13 @@ class MultimodalRetriever:
         self.processor = ColPaliProcessor.from_pretrained(self.settings.colpali_model)
         self.model.eval()
 
+        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+        self.embed_model = HuggingFaceEmbedding(
+            model_name="BAAI/bge-m3",
+            cache_folder=str(Path(self.settings.hf_home) / "hub"),
+        )
+
     def retrieve_images(
         self,
         query: str,
@@ -176,6 +183,61 @@ class MultimodalRetriever:
             }
             for point in points
         ]
+
+    def retrieve_text(
+        self,
+        query: str,
+        top_k: int = 5,
+        doc_id: str | None = None,
+    ) -> list[dict]:
+        embedding = self.embed_model.get_text_embedding(query)
+        query_filter = None
+        if doc_id is not None:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="doc_id",
+                        match=MatchValue(value=doc_id),
+                    )
+                ]
+            )
+
+        response = self.qdrant_client.query_points(
+            collection_name=self.settings.text_collection,
+            query=list(embedding),
+            query_filter=query_filter,
+            with_payload=True,
+            limit=top_k,
+        )
+
+        points = getattr(response, "points", response)
+        return [
+            {
+                "page_num": point.payload["page_num"],
+                "chunk_id": point.payload["chunk_id"],
+                "text": point.payload["text"],
+                "score": point.score,
+                "doc_id": point.payload["doc_id"],
+            }
+            for point in points
+        ]
+
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 5,
+        doc_id: str | None = None,
+    ) -> RetrievalResult:
+        image_results = self.retrieve_images(query, top_k, doc_id)
+        text_results = self.retrieve_text(query, top_k, doc_id)
+        top_image_pages = {result["page_num"] for result in image_results}
+
+        for chunk in text_results:
+            if chunk["page_num"] in top_image_pages:
+                chunk["score"] += 0.1
+
+        text_results.sort(key=lambda chunk: chunk["score"], reverse=True)
+        return RetrievalResult(top_pages=image_results, top_chunks=text_results)
 
     def _move_to_device(self, inputs: Any) -> Any:
         device = self.settings.embed_device

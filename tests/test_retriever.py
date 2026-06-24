@@ -84,6 +84,59 @@ def test_retrieve_images_result_dicts_contain_expected_keys(monkeypatch) -> None
     )
 
 
+def test_retrieve_text_returns_correct_keys() -> None:
+    retriever = MultimodalRetriever.__new__(MultimodalRetriever)
+    retriever.settings = _retriever_settings()
+    retriever.qdrant_client = _text_qdrant_client()
+    retriever.embed_model = MagicMock()
+    retriever.embed_model.get_text_embedding.return_value = [0.1] * 1024
+
+    results = retriever.retrieve_text("example query")
+
+    assert results
+    assert all(
+        set(result) == {"page_num", "chunk_id", "text", "score", "doc_id"}
+        for result in results
+    )
+
+
+def test_retrieve_boosts_matching_page_nums() -> None:
+    retriever = MultimodalRetriever.__new__(MultimodalRetriever)
+    retriever.retrieve_images = MagicMock(
+        return_value=[
+            {
+                "page_num": 3,
+                "image_path": "page_3.png",
+                "score": 0.9,
+                "doc_id": "doc",
+            }
+        ]
+    )
+    retriever.retrieve_text = MagicMock(
+        return_value=[
+            {
+                "page_num": 7,
+                "chunk_id": "doc_p7_c0",
+                "text": "Other page.",
+                "score": 0.84,
+                "doc_id": "doc",
+            },
+            {
+                "page_num": 3,
+                "chunk_id": "doc_p3_c0",
+                "text": "Matching page.",
+                "score": 0.8,
+                "doc_id": "doc",
+            },
+        ]
+    )
+
+    result = retriever.retrieve("example query")
+
+    assert result.top_chunks[0]["page_num"] == 3
+    assert result.top_chunks[0]["score"] > result.top_chunks[1]["score"]
+
+
 def _mock_colpali(monkeypatch) -> None:
     class FakeColPali:
         @classmethod
@@ -123,6 +176,30 @@ def _mock_colpali(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "colpali_engine", package_module)
     monkeypatch.setitem(sys.modules, "colpali_engine.models", models_module)
 
+    class FakeHuggingFaceEmbedding:
+        def __init__(self, *args, **kwargs):
+            return None
+
+        def get_text_embedding(self, query):
+            return [0.1] * 1024
+
+    huggingface_module = types.ModuleType("llama_index.embeddings.huggingface")
+    huggingface_module.HuggingFaceEmbedding = FakeHuggingFaceEmbedding
+
+    embeddings_module = types.ModuleType("llama_index.embeddings")
+    embeddings_module.huggingface = huggingface_module
+
+    llama_index_module = types.ModuleType("llama_index")
+    llama_index_module.embeddings = embeddings_module
+
+    monkeypatch.setitem(sys.modules, "llama_index", llama_index_module)
+    monkeypatch.setitem(sys.modules, "llama_index.embeddings", embeddings_module)
+    monkeypatch.setitem(
+        sys.modules,
+        "llama_index.embeddings.huggingface",
+        huggingface_module,
+    )
+
 
 def _qdrant_client() -> MagicMock:
     client = MagicMock()
@@ -157,9 +234,29 @@ def _qdrant_client() -> MagicMock:
     return client
 
 
+def _text_qdrant_client() -> MagicMock:
+    client = MagicMock()
+    client.query_points.return_value = SimpleNamespace(
+        points=[
+            SimpleNamespace(
+                payload={
+                    "page_num": 3,
+                    "chunk_id": "doc_p3_c0",
+                    "text": "Example text chunk.",
+                    "doc_id": "doc",
+                },
+                score=0.89,
+            )
+        ]
+    )
+    return client
+
+
 def _retriever_settings() -> SimpleNamespace:
     return SimpleNamespace(
         colpali_model="fake-colpali",
         embed_device="cpu",
         image_collection="image_index",
+        text_collection="text_index",
+        hf_home="D:/tmp/hf",
     )

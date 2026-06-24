@@ -24,6 +24,11 @@ class Source(BaseModel):
     score: float | None = None
 
 
+class RetrievalResult(BaseModel):
+    top_pages: list[dict]
+    top_chunks: list[dict]
+
+
 class QueryResponse(BaseModel):
     answer: str = ""
     sources: list[Source] = Field(default_factory=list)
