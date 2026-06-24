@@ -1,121 +1,133 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from "react"
+import { getDocuments, streamQuery } from "./api/client"
+import AnswerPanel from "./components/AnswerPanel"
+import DocumentList from "./components/DocumentList"
+import PDFUploader from "./components/PDFUploader"
+import QueryInput from "./components/QueryInput"
+import ResultCard from "./components/ResultCard"
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [docId, setDocId] = useState(null)
+  const [docs, setDocs] = useState([])
+  const [query, setQuery] = useState("")
+  const [sources, setSources] = useState({ pages: [], chunks: [] })
+  const [answer, setAnswer] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [latency, setLatency] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+
+    getDocuments()
+      .then(data => {
+        if (mounted) setDocs(data.documents ?? [])
+      })
+      .catch(err => {
+        if (mounted) setError(typeof err === "string" ? err : "Could not load documents")
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const handleIngested = (newDocId) => {
+    setDocId(newDocId)
+    setDocs(prev => (prev.includes(newDocId) ? prev : [newDocId, ...prev]))
+  }
+
+  const handleQuery = (nextQuery) => {
+    if (!docId) return
+
+    setQuery(nextQuery)
+    setLoading(true)
+    setAnswer("")
+    setLatency(null)
+    setError(null)
+    setSources({ pages: [], chunks: [] })
+
+    streamQuery(
+      nextQuery,
+      docId,
+      (pages, chunks) => setSources({ pages, chunks }),
+      token => setAnswer(prev => prev + token),
+      ms => {
+        setLatency(ms)
+        setLoading(false)
+      },
+      err => {
+        setError(err)
+        setLoading(false)
+      },
+    )
+  }
+
+  if (docId === null) {
+    return (
+      <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950">
+        <div className="mx-auto max-w-5xl">
+          <header className="mb-6">
+            <h1 className="text-2xl font-semibold">Multimodal RAG</h1>
+            <p className="mt-1 text-sm text-slate-600">Upload or select a document to begin.</p>
+          </header>
+
+          {error && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="grid gap-5 md:grid-cols-[1fr_1fr]">
+            <PDFUploader onIngested={handleIngested} />
+            <DocumentList docs={docs} selected={docId} onSelect={setDocId} />
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <main className="min-h-screen bg-slate-100 text-slate-950">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Selected document
+            </div>
+            <div className="truncate text-sm font-medium text-slate-950">{docId}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDocId(null)}
+            className="h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Change document
+          </button>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        {error && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <QueryInput onSubmit={handleQuery} loading={loading} />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <ResultCard pages={sources.pages} chunks={sources.chunks} />
+          <AnswerPanel answer={answer} loading={loading} latency_ms={latency} />
+        </div>
+
+        {query && (
+          <div className="mt-4 text-xs text-slate-500">
+            Last query: {query}
+          </div>
+        )}
+      </div>
+    </main>
   )
 }
 

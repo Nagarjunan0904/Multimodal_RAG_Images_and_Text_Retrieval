@@ -1,0 +1,40 @@
+# requirements.txt
+
+# Core LLM / vision generation
+openai==2.43.0
+
+# Multimodal retrieval (ColPali)
+colpali-engine==0.3.7
+transformers==4.47.0
+sentence-transformers==5.6.0
+
+# torch: CPU build installed via requirements.txt
+# CUDA build (RTX 5070, Blackwell sm_120) installed separately:
+# pip install torch==2.7.0 --index-url https://download.pytorch.org/whl/cu128
+torch==2.7.0+cpu
+
+# Vector store
+qdrant-client==1.12.1
+
+# Text chunking + embeddings
+llama-index-core==0.14.22
+llama-index-embeddings-huggingface==0.7.0
+
+# API server
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# PDF rendering to images + text extraction
+pypdfium2==4.30.0
+pillow==11.0.0
+
+# Config + validation
+python-dotenv==1.0.1
+pydantic==2.13.4
+pydantic-core==2.46.4
+pydantic-settings==2.7.0
+
+# Testing
+pytest==8.3.4
+httpx==0.28.1
