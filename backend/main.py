@@ -6,6 +6,7 @@ import uuid
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from backend.generator import generate_answer
@@ -26,6 +27,10 @@ app.add_middleware(
 )
 
 settings = Settings()
+pages_dir = Path(getattr(settings, "output_dir", Path("output/pages")))
+pages_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/pages", StaticFiles(directory=str(pages_dir)), name="pages")
+
 qdrant = get_qdrant_client(settings)
 retriever = MultimodalRetriever(qdrant_client=qdrant, settings=settings)
 logger = EvalLogger(db_path=Path("eval.db"))

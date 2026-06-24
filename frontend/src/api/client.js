@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
+export const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
 export async function ingestPdf(file, onProgress) {
   const form = new FormData()
@@ -27,12 +27,13 @@ export async function postQuery(query, doc_id) {
   return res.json()
 }
 
-export function streamQuery(query, doc_id, onSources, onToken, onDone, onError) {
+export function streamQuery(query, doc_id, onSources, onToken, onDone, onError, onStatus) {
   const url = `${BASE}/query/stream?query=${encodeURIComponent(query)}&doc_id=${encodeURIComponent(doc_id)}`
   const es = new EventSource(url)
   es.onmessage = e => {
     const data = JSON.parse(e.data)
-    if (data.type === "sources") onSources?.(data.pages, data.chunks)
+    if (data.type === "status") onStatus?.(data.content)
+    else if (data.type === "sources") onSources?.(data.pages, data.chunks)
     else if (data.type === "token") onToken?.(data.content)
     else if (data.type === "done") { onDone?.(data.latency_ms); es.close() }
     else if (data.type === "error") { onError?.(data.message); es.close() }

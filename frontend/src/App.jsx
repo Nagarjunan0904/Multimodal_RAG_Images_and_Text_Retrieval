@@ -15,6 +15,8 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [latency, setLatency] = useState(null)
+  const [sseStatus, setSseStatus] = useState(null)
+  const [usedImage, setUsedImage] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -44,22 +46,30 @@ function App() {
     setLoading(true)
     setAnswer("")
     setLatency(null)
+    setSseStatus(null)
+    setUsedImage(false)
     setError(null)
     setSources({ pages: [], chunks: [] })
 
     streamQuery(
       nextQuery,
       docId,
-      (pages, chunks) => setSources({ pages, chunks }),
+      (pages, chunks) => {
+        setSources({ pages, chunks })
+        setUsedImage(pages.length > 0)
+      },
       token => setAnswer(prev => prev + token),
       ms => {
         setLatency(ms)
         setLoading(false)
+        setSseStatus(null)
       },
       err => {
         setError(err)
         setLoading(false)
+        setSseStatus(null)
       },
+      status => setSseStatus(status),
     )
   }
 
@@ -114,11 +124,18 @@ function App() {
           </div>
         )}
 
-        <QueryInput onSubmit={handleQuery} loading={loading} />
+        <QueryInput onSubmit={handleQuery} loading={loading} sseStatus={sseStatus} />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <ResultCard pages={sources.pages} chunks={sources.chunks} />
-          <AnswerPanel answer={answer} loading={loading} latency_ms={latency} />
+          <AnswerPanel
+            answer={answer}
+            loading={loading}
+            latency_ms={latency}
+            sources={sources.pages}
+            used_image={usedImage}
+            onSourceClick={() => {}}
+          />
         </div>
 
         {query && (
