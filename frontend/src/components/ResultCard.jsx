@@ -19,9 +19,9 @@ function ResultCard({ pages = [], chunks = [] }) {
 
   if (!pages.length) {
     return (
-      <section className="flex min-h-96 items-center justify-center rounded-lg border border-slate-200 bg-white p-5 text-center shadow-sm">
+      <section className="flex min-h-96 items-center justify-center rounded-xl border border-[#2d3148] bg-[#1a1d27] p-5 text-center shadow-lg">
         <div>
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#12141f] text-slate-500">
             ?
           </div>
           <p className="text-sm text-slate-500">Ask a question to see results</p>
@@ -31,9 +31,13 @@ function ResultCard({ pages = [], chunks = [] }) {
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-        <div className="absolute left-3 top-3 z-10 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+    <section className="rounded-xl border border-[#2d3148] bg-[#1a1d27] p-5 shadow-lg">
+      <div className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-400">
+        Retrieved Context
+      </div>
+
+      <div className="relative overflow-hidden rounded-lg bg-[#12141f]">
+        <div className="absolute left-2 top-2 z-10 rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white shadow-sm">
           Page {pageNum}
         </div>
         {imageUrl && !imageError ? (
@@ -41,10 +45,10 @@ function ResultCard({ pages = [], chunks = [] }) {
             src={imageUrl}
             alt={`Page ${pageNum}`}
             onError={() => setImageError(true)}
-            className="max-h-[420px] w-full rounded-lg object-contain"
+            className="max-h-[420px] w-full object-contain"
           />
         ) : (
-          <div className="flex min-h-[320px] items-center justify-center rounded-lg bg-slate-200 text-sm font-medium text-slate-500">
+          <div className="flex min-h-[320px] items-center justify-center bg-[#12141f] text-sm font-medium text-slate-500">
             Image unavailable
           </div>
         )}
@@ -52,14 +56,14 @@ function ResultCard({ pages = [], chunks = [] }) {
 
       <div className="mt-4">
         <div className="mb-2 text-xs font-semibold uppercase text-slate-500">Matched text</div>
-        <div className="max-h-[150px] overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+        <div className="max-h-[150px] overflow-y-auto rounded-lg bg-[#12141f] p-3 text-sm leading-6 text-slate-400">
           {preview || "No matched text returned"}
         </div>
       </div>
 
       <div className="mt-4 space-y-3">
-        <ScoreBar label="Visual match" score={imageScore} color="bg-emerald-500" />
-        <ScoreBar label="Text match" score={textScore} color="bg-sky-500" />
+        <ScoreBar label="Visual match" score={imageScore} color="bg-indigo-500" />
+        <ScoreBar label="Text match" score={textScore} color="bg-emerald-500" />
       </div>
     </section>
   )
@@ -70,11 +74,11 @@ function ScoreBar({ label, score, color }) {
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-600">
+      <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-400">
         <span>{label}</span>
         <span>{percent}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className="h-2 overflow-hidden rounded-full bg-[#12141f]">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${percent}%` }} />
       </div>
     </div>

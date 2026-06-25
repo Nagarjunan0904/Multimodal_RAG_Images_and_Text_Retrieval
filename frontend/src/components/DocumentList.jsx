@@ -1,7 +1,7 @@
 function DocumentList({ docs, selected, onSelect }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-950">Documents</h2>
+    <section className="rounded-xl border border-[#2d3148] bg-[#1a1d27] p-5 shadow-lg">
+      <h2 className="text-lg font-semibold text-white">Documents</h2>
 
       {docs.length === 0 ? (
         <p className="mt-4 text-sm text-slate-500">No documents ingested yet</p>
@@ -12,13 +12,14 @@ function DocumentList({ docs, selected, onSelect }) {
               type="button"
               key={doc}
               onClick={() => onSelect?.(doc)}
-              className={`block w-full truncate rounded-md border px-3 py-2 text-left text-sm ${
+              className={`block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                 selected === doc
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-950"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  ? "border-l-2 border-indigo-500 bg-indigo-900 text-slate-100"
+                  : "text-slate-300 hover:bg-[#2d3148]"
               }`}
             >
-              {doc}
+              <span className="mr-2">▣</span>
+              {doc.slice(0, 8)}...
             </button>
           ))}
         </div>

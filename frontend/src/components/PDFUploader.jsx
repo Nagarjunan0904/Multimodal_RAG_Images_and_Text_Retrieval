@@ -58,10 +58,10 @@ function PDFUploader({ onIngested }) {
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-xl border border-[#2d3148] bg-[#1a1d27] p-5 shadow-lg">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-slate-950">Upload PDF</h2>
-        <p className="mt-1 text-sm text-slate-600">Index a document or open the demo.</p>
+        <h2 className="text-lg font-semibold text-white">Upload PDF</h2>
+        <p className="mt-1 text-sm text-slate-400">Index a document or open the demo.</p>
       </div>
 
       <button
@@ -77,14 +77,14 @@ function PDFUploader({ onIngested }) {
           setDragging(false)
           selectFile(event.dataTransfer.files?.[0])
         }}
-        className={`flex min-h-40 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 text-center transition ${
+        className={`flex min-h-40 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed bg-[#12141f] p-10 text-center transition-colors ${
           dragging
-            ? "border-emerald-500 bg-emerald-50"
-            : "border-slate-300 bg-slate-50 hover:border-slate-400"
+            ? "border-indigo-500"
+            : "border-[#3d4166] hover:border-indigo-500"
         }`}
       >
-        <span className="text-3xl text-slate-400">PDF</span>
-        <span className="mt-3 text-sm font-medium text-slate-800">
+        <span className="text-3xl text-slate-500">PDF</span>
+        <span className="mt-3 text-sm font-medium text-slate-200">
           {file ? file.name : "Drop a PDF here or click to browse"}
         </span>
         <span className="mt-1 text-xs text-slate-500">Only .pdf files are accepted</span>
@@ -103,14 +103,14 @@ function PDFUploader({ onIngested }) {
           type="button"
           onClick={upload}
           disabled={!file || status === "uploading" || status === "indexing"}
-          className="h-10 rounded-md bg-emerald-600 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-[#3d4166] disabled:text-slate-500"
         >
           {status === "uploading" ? "Uploading..." : "Upload document"}
         </button>
         <button
           type="button"
           onClick={tryDemo}
-          className="h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-lg border border-indigo-500 px-4 py-2 text-sm font-medium text-indigo-400 transition-colors hover:bg-indigo-950"
         >
           Try demo: NVIDIA H100 Whitepaper
         </button>
@@ -118,21 +118,21 @@ function PDFUploader({ onIngested }) {
 
       {(status === "uploading" || status === "indexing") && (
         <div className="mt-4">
-          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+          <div className="h-2 overflow-hidden rounded-full bg-[#12141f]">
+            <div className="h-full bg-indigo-500 transition-all" style={{ width: `${progress}%` }} />
           </div>
           {status === "indexing" && (
-            <p className="mt-2 animate-pulse text-sm text-emerald-700">Indexing pages...</p>
+            <p className="mt-2 animate-pulse text-sm text-indigo-300">Indexing pages...</p>
           )}
         </div>
       )}
 
       {status === "done" && result && (
-        <p className="mt-4 text-sm font-medium text-emerald-700">
+        <p className="mt-4 text-sm font-medium text-indigo-300">
           Indexed {result.num_pages} pages, {result.num_chunks} text chunks
         </p>
       )}
-      {status === "error" && <p className="mt-4 text-sm font-medium text-red-600">{error}</p>}
+      {status === "error" && <p className="mt-4 text-sm font-medium text-red-300">{error}</p>}
     </section>
   )
 }

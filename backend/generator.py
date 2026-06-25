@@ -4,12 +4,14 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+import openai
 from PIL import Image
 
 from backend.models.schemas import GenerationResponse, RetrievalResult
 
 
 SYSTEM_PROMPT = "You are a precise document Q&A assistant. You are given:\n1. A page image from a technical document\n2. Relevant text chunks from the same document\n\nAnswer the user's question using BOTH the visual content of the image (charts, diagrams, figures, tables) AND the text. If the answer comes from a figure or diagram, describe what you see visually. Cite the page number. If the answer is not in the provided context, say so explicitly. Do not hallucinate."
+_client = openai.AsyncOpenAI()
 
 
 async def generate_answer(
@@ -17,8 +19,6 @@ async def generate_answer(
     retrieval_result: RetrievalResult,
     stream: bool = False,
 ) -> GenerationResponse | AsyncIterator[str]:
-    import openai
-
     image_path = (
         Path(retrieval_result.top_pages[0]["image_path"])
         if retrieval_result.top_pages
@@ -44,7 +44,7 @@ async def generate_answer(
             }
         )
 
-    client = openai.AsyncOpenAI()
+    client = _client
 
     if stream:
         return _stream_response(client, content_list)

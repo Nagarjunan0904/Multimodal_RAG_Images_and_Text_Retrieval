@@ -23,7 +23,7 @@ function QueryInput({ onSubmit, loading, sseStatus }) {
       : null
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-[#2d3148] bg-[#1a1d27] p-4 shadow-lg">
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
           type="text"
@@ -34,13 +34,13 @@ function QueryInput({ onSubmit, loading, sseStatus }) {
           }}
           disabled={loading}
           placeholder="Ask about a diagram, chart, or anything in this document..."
-          className="h-11 flex-1 rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
+          className="w-full rounded-xl border border-[#3d4166] bg-[#12141f] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-indigo-500 disabled:cursor-not-allowed disabled:text-slate-500"
         />
         <button
           type="button"
           onClick={() => submit(value)}
           disabled={loading || !value.trim()}
-          className="h-11 rounded-md bg-slate-950 px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-[#3d4166] disabled:text-slate-500"
         >
           Submit
         </button>
@@ -56,7 +56,7 @@ function QueryInput({ onSubmit, loading, sseStatus }) {
               submit(chip)
             }}
             disabled={loading}
-            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="cursor-pointer rounded-full bg-[#2d3148] px-3 py-1 text-sm font-medium text-slate-300 transition-colors hover:bg-[#3d4166] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {chip}
           </button>
@@ -64,8 +64,8 @@ function QueryInput({ onSubmit, loading, sseStatus }) {
       </div>
 
       {statusLabel && (
-        <div className="mt-3 animate-pulse text-sm font-medium text-emerald-700">
-          {sseStatus?.includes("Retrieving") ? "" : "✍️ "}
+        <div className="mt-3 animate-pulse text-sm font-medium text-indigo-300">
+          {sseStatus?.includes("Retrieving") ? "" : "Generating: "}
           {statusLabel}
         </div>
       )}
