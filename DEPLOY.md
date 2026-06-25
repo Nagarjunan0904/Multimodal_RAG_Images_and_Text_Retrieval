@@ -59,3 +59,56 @@ The cloud cluster starts empty. Re-run ingestion for each document:
          https://<your-cluster-id>.aws.cloud.qdrant.io/collections
 
 Expected response: lists image_index and text_index collections.
+
+## Railway / Render Deployment
+
+### 1. Create Project from GitHub
+- Push your repo to GitHub if not already done
+- Railway: New Project → Deploy from GitHub repo → select your repo
+- Render: New Web Service → connect GitHub repo
+- Set the root directory to: . (project root)
+- Build command: docker build -f backend/Dockerfile .
+- Start command is handled by the Dockerfile CMD
+
+### 2. Set Environment Variables
+In the Railway/Render dashboard, add these environment variables:
+    OPENAI_API_KEY=<your-openai-key>
+    QDRANT_URL=https://<your-cluster>.aws.cloud.qdrant.io
+    QDRANT_API_KEY=<your-qdrant-cloud-key>
+    IMAGE_COLLECTION=image_index
+    TEXT_COLLECTION=text_index
+    COLPALI_MODEL=vidore/colpali-v1.2
+    EMBED_DEVICE=cpu
+    HF_HOME=/app/hf_cache
+
+### 3. CPU Inference — Timeout Settings
+The deployed container uses CPU-only torch (requirements-docker.txt).
+Inference is slower than GPU — configure these timeouts:
+- Railway: Settings → Networking → Request Timeout → 120s
+- Render: Set RENDER_REQUEST_TIMEOUT=120 in env vars
+- POST /ingest on a 70-page PDF takes ~15-30 min on CPU —
+  consider pre-seeding via scripts/seed_demo.py instead of
+  ingesting through the UI on production
+
+### 4. Pre-seed Demo Data (Post-deploy Step)
+After the service is live, run locally pointing at the deployed backend:
+    VITE_API_URL=https://<your-backend-url> python scripts/seed_demo.py
+
+Or set BACKEND_URL env var and run:
+    BACKEND_URL=https://<your-backend-url> python scripts/seed_demo.py
+
+This pre-ingests demo PDFs so the live demo has zero cold-start wait.
+
+### 5. Verify Deployment
+    curl https://<your-backend-url>/documents
+Expected: {"documents": ["bffb0169-aa17-401e-82d9-2f972556a2b0", ...]}
+
+    curl https://<your-backend-url>/eval
+Expected: {"total_queries": 0, "avg_latency": 0.0, ...}
+
+### 6. Link to Vercel Frontend
+After confirming the backend URL works:
+1. Go to your Vercel project → Settings → Environment Variables
+2. Add: VITE_API_URL=https://<your-backend-url>
+3. Redeploy the frontend (Vercel → Deployments → Redeploy)
+4. Open the Vercel URL and confirm Stage 1 loads documents
