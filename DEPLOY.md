@@ -26,3 +26,36 @@ Set these in Railway/Render dashboard (never commit to git):
 ## Local Production Test
 docker compose -f docker-compose.prod.yml up --build
 Then verify: curl http://localhost:8000/eval
+
+## Qdrant Cloud Migration
+
+### 1. Create a Free Cluster
+- Go to https://cloud.qdrant.io and sign up
+- Create a new cluster, select the free tier (1GB)
+- Wait ~2 minutes for the cluster to provision
+
+### 2. Set Environment Variables
+Add these to your .env file (local) or Railway/Render dashboard (production):
+    QDRANT_URL=https://<your-cluster-id>.aws.cloud.qdrant.io
+    QDRANT_API_KEY=<your-api-key>
+
+### 3. Re-run Collection Setup
+With the new env vars set, run:
+    python -c "
+    from backend.models.config import Settings
+    from backend.qdrant_client import get_qdrant_client, ensure_collections
+    s = Settings()
+    c = get_qdrant_client(s)
+    ensure_collections(c)
+    print('Collections ready on Qdrant Cloud')
+    "
+
+### 4. Re-ingest Documents
+The cloud cluster starts empty. Re-run ingestion for each document:
+    python -m backend.main demo.pdf
+
+### 5. Verify
+    curl -H "api-key: <your-api-key>" \
+         https://<your-cluster-id>.aws.cloud.qdrant.io/collections
+
+Expected response: lists image_index and text_index collections.

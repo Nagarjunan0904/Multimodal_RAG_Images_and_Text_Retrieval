@@ -13,12 +13,10 @@ from backend.models.config import Settings
 
 def get_qdrant_client(settings: Settings | None = None) -> QdrantClient:
     settings = settings or Settings()
-    kwargs: dict[str, str] = {"url": settings.qdrant_url}
-
-    if settings.qdrant_api_key:
-        kwargs["api_key"] = settings.qdrant_api_key
-
-    return QdrantClient(**kwargs)
+    return QdrantClient(
+        url=settings.qdrant_url,
+        api_key=settings.qdrant_api_key or None,
+    )
 
 
 def ensure_collections(client: QdrantClient) -> None:

@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     openai_api_key: str
     qdrant_url: str = "http://localhost:6333"
-    qdrant_api_key: str = ""
+    qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
     image_collection: str = "image_index"
     text_collection: str = "text_index"
     colpali_model: str = "vidore/colpali-v1.2"
