@@ -27,7 +27,7 @@ app.add_middleware(
 )
 
 settings = Settings()
-pages_dir = Path(getattr(settings, "output_dir", Path("output/pages")))
+pages_dir = Path("tmp/pages")
 pages_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/pages", StaticFiles(directory=str(pages_dir)), name="pages")
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-const STATIC_PAGE_BASE = "http://localhost:8000/static/pages"
+import { BASE } from "../api/client"
 
 function ResultCard({ pages = [], chunks = [] }) {
   const [imageError, setImageError] = useState(false)
@@ -9,7 +9,7 @@ function ResultCard({ pages = [], chunks = [] }) {
   const pageNum = page?.page_num
   const imageScore = Number(page?.score ?? 0)
   const textScore = Number(chunk?.score ?? 0)
-  const imageUrl = page?.image_path ? `${STATIC_PAGE_BASE}/${basename(page.image_path)}` : null
+  const imageUrl = page?.image_path ? getImageUrl(page.image_path) : null
   const textChunk = chunk?.text ?? ""
   const preview = textChunk.length > 300 ? `${textChunk.slice(0, 300)}...` : textChunk
 
@@ -85,8 +85,9 @@ function ScoreBar({ label, score, color }) {
   )
 }
 
-function basename(path) {
-  return String(path).split(/[\\/]/).pop()
+function getImageUrl(image_path) {
+  const parts = image_path.replace(/\\/g, "/").split("/")
+  return `${BASE}/static/pages/${parts[parts.length - 2]}/${parts[parts.length - 1]}`
 }
 
 function clamp(value) {

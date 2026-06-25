@@ -30,7 +30,7 @@ async def generate_answer(
     text_context = "\n\n".join(
         chunk["text"] for chunk in retrieval_result.top_chunks[:3]
     )[:2000]
-    content_list: list[dict[str, str]] = [
+    content_list: list[dict[str, Any]] = [
         {
             "type": "input_text",
             "text": f"Question: {query}\n\nContext:\n{text_context}",
@@ -52,7 +52,12 @@ async def generate_answer(
     response = await client.responses.create(
         model="gpt-5.4-mini-2026-03-17",
         instructions=SYSTEM_PROMPT,
-        input=content_list,
+        input=[
+            {
+                "role": "user",
+                "content": content_list,
+            }
+        ],
     )
     sources = [
         {"page_num": page["page_num"], "doc_id": page["doc_id"]}
@@ -67,12 +72,17 @@ async def generate_answer(
 
 async def _stream_response(
     client: Any,
-    content_list: list[dict[str, str]],
+    content_list: list[dict[str, Any]],
 ) -> AsyncIterator[str]:
     stream = await client.responses.create(
         model="gpt-5.4-mini-2026-03-17",
         instructions=SYSTEM_PROMPT,
-        input=content_list,
+        input=[
+            {
+                "role": "user",
+                "content": content_list,
+            }
+        ],
         stream=True,
     )
     async for event in stream:
