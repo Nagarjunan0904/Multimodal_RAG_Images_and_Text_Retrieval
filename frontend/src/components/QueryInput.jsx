@@ -1,10 +1,12 @@
 import { useState } from "react"
 
 const EXAMPLES = [
-  "What does the architecture diagram show?",
-  "Summarize the memory bandwidth specs",
-  "What are the key differences between SXM and PCIe?",
+  "What is the memory bandwidth of H100 SXM5?",
+  "Compare H100 and A100 memory specifications",
   "Explain the Transformer Engine",
+  "Explain the NVLink bandwidth in H100",
+  "What manufacturing process is H100 built on?",
+  "How many CUDA cores does H100 have?",
 ]
 
 function QueryInput({ onSubmit, loading, sseStatus }) {

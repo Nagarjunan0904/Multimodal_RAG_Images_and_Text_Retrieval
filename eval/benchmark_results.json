@@ -1,0 +1,75 @@
+{
+  "demo_doc_id": "bffb0169-aa17-401e-82d9-2f972556a2b0",
+  "questions": [
+    {
+      "question": "What is the memory bandwidth of H100 SXM5 in TB/sec?",
+      "text_only_answer": "The **H100 SXM5** has **3 TB/sec** of memory bandwidth.\n\nThis is stated in the text on the page: it says the H100 SXM5 uses **80 GB of HBM3** and delivers **\u201cover 3 TB/sec of memory bandwidth\u201d** / **\u201ca class-leading 3 TB/sec\u201d**. **Page not specified in the provided excerpt.**",
+      "multimodal_answer": "The **H100 SXM5** has a memory bandwidth of **over 3 TB/sec**.\n\nThis is stated in the text on **page 36**, and the page also visually supports it by describing the H100 SXM5 as using **80 GB of fast HBM3 memory** with a **\u201cclass-leading 3 TB/sec of memory bandwidth.\u201d**",
+      "text_only_correct": true,
+      "multimodal_correct": true
+    },
+    {
+      "question": "How many texture units does H100 have?",
+      "text_only_answer": "H100 has **texture processing clusters (TPCs)**, not a separately stated count of \u201ctexture units,\u201d in the provided context.\n\nFrom the page text on **page 18**:\n- **Full GH100 GPU:** **72 TPCs** total\n- **H100 SXM5:** **66 TPCs**\n- **H100 PCIe Gen 5:** **57 TPCs**\n\nIf by \u201ctexture units\u201d you mean the texture-related hardware units shown here, the document only gives the **TPC count**, so the answer is **72 TPCs for the full GH100**, or **66 / 57 TPCs** for the SXM5 / PCIe versions respectively.",
+      "multimodal_answer": "H100 has **528 texture units** for the **SXM5 version**. This is shown in the table on **page 40**, where the row labeled **\u201cTexture Units\u201d** lists **528** for the H100 SXM5 GPU.\n\nFor comparison, the same page shows:\n- **432** texture units for the A100 column\n- **456** texture units for the H100 PCIe Gen 5 column\n\nSo, if you mean the H100 SXM5 model, the answer is **528 texture units**.",
+      "text_only_correct": false,
+      "multimodal_correct": true
+    },
+    {
+      "question": "What is the TDP of H100 SXM5?",
+      "text_only_answer": "The **TDP of the H100 SXM5 is 700 W**.\n\nI\u2019m inferring this from the H100 SXM5 product specification on the referenced page, which lists the SXM5 board form factor and its associated power rating. **Page not explicitly shown in the provided text excerpt, but this is from the H100 SXM5 specification section.**",
+      "multimodal_answer": "The **TDP of the H100 SXM5 GPU is 350 Watts**.\n\n- **Text evidence:** The page states under **\u201cH100 PCIe Gen 5 GPU\u201d** that the PCIe Gen 5 configuration provides the capabilities of H100 SXM5 GPUs in **\u201cjust 350 Watts of Thermal Design Power (TDP)\u201d**.\n- **Page:** **15**\n\nSo, **H100 SXM5 = 350 W TDP**.",
+      "text_only_correct": false,
+      "multimodal_correct": false
+    },
+    {
+      "question": "What is the L2 cache size of H100?",
+      "text_only_answer": "The **H100 L2 cache size is 50 MB**. This is stated in the text on **page 37**, and it is also shown in the comparison table on **page 40**, where **\u201cL2 Cache Size\u201d = 50 MB** for H100.",
+      "multimodal_answer": "The H100 has a **50 MB L2 cache**.\n\nThis is shown both in the text on **page 37** (\u201cA 50 MB L2 cache in H100\u2026\u201d) and in the table on **page 40**, where the **L2 Cache Size** row lists **50 MB** for H100.",
+      "text_only_correct": true,
+      "multimodal_correct": true
+    },
+    {
+      "question": "How does the H100 NVLink topology diagram show chip connections?",
+      "text_only_answer": "The context and the visible figure text indicate that the H100 NVLink topology is **a fully connected NVLink Switch network arranged in a 2:1 tapered fat tree topology**. In the diagram\u2019s description, DGX H100 SuperPODs can span **up to 256 GPUs** that are \u201cfully connected over NVLink Switch System\u201d using **third-generation NVSwitch technology**. The chip/GPU connections are shown as **multiple NVLink ports per switch**, with the text noting **128 NVLink ports in a single 1U, 32-cage NVLink Switch**, and each port transferring **25 GB/sec**.  \n\nSo, visually and textually, the topology depicts **GPU chips connected through NVLink switches rather than directly in a simple chain or ring**, forming a **fat-tree network** for high bisection bandwidth. This is described on **page 49**.",
+      "multimodal_answer": "The page shown does **not include a chip-connection topology diagram** for H100 itself. On the visible page (page **16**), the content is text about **HGX H100** and **H100 CNX Converged Accelerator**, not a diagram.\n\nWhat the text says on page 16:\n- **4-GPU HGX H100**: \u201cfully interconnected point to point NVLink connections between GPUs\u201d\n- **8-GPU HGX H100**: \u201cfull GPU-to-GPU bandwidth through NVSwitch\u201d\n\nSo, based on the provided image and text, the H100 connection scheme is described as:\n- **Direct point-to-point NVLink** between GPUs in the 4-GPU configuration\n- **NVSwitch-based full GPU-to-GPU connectivity** in the 8-GPU configuration\n\nIf you meant a specific **topology diagram** from another page, it is **not present in this provided page/image**, so I can\u2019t describe its visual chip layout from the current context.",
+      "text_only_correct": true,
+      "multimodal_correct": false
+    },
+    {
+      "question": "What manufacturing process node is H100 built on?",
+      "text_only_answer": "H100 is built on NVIDIA\u2019s **TSMC 4N process node** \u2014 a customized **4 nm-class** manufacturing process. This is the process node used for the Hopper H100 GPU. The provided page image/text context here doesn\u2019t explicitly state the node, so this answer is based on NVIDIA H100 product information rather than the visible excerpt.",
+      "multimodal_answer": "H100 is built on **TSMC\u2019s 4N process**, customized for NVIDIA.\n\nThis is stated in the text on **page 8** (\u201cImplemented using TSMC\u2019s 4N process customized for NVIDIA\u2026\u201d) and repeated again on **page 17** (\u201cThe full GH100 GPU that powers the H100 GPU is fabricated using TSMC\u2019s 4N process\u2026\u201d).",
+      "text_only_correct": true,
+      "multimodal_correct": true
+    },
+    {
+      "question": "What is the register file size per GPU in H100?",
+      "text_only_answer": "The **register file size per GPU in H100 is 33,792 KB**.\n\nOn the provided page 40 table, the row **\u201cRegister File Size / GPU\u201d** lists:\n- **A100 40GB:** 27,648 KB  \n- **H100 80GB:** **33,792 KB**  \n- **A100 80GB:** 29,184 KB  \n\nSo for **H100**, the register file size per GPU is **33,792 KB**.",
+      "multimodal_answer": "The **register file size per GPU in H100 is 33,792 KB**.\n\n- This is shown in the table on **page 40** under **\u201cRegister File Size / GPU\u201d**.\n- Visually, the H100 column in the table lists **33792 KB** for that row.",
+      "text_only_correct": true,
+      "multimodal_correct": true
+    },
+    {
+      "question": "How many transistors does H100 have?",
+      "text_only_answer": "H100 has **80 billion transistors**. This is stated in the NVIDIA H100 Tensor Core GPU overview on **page 9**.",
+      "multimodal_answer": "H100 has **80 billion transistors**.\n\n- This is shown in the table on **page 40** under the row labeled **\u201cTransistors\u201d**, where the H100 column lists **\u201c80 billion.\u201d**",
+      "text_only_correct": true,
+      "multimodal_correct": true
+    },
+    {
+      "question": "What is the memory data rate of H100 SXM5?",
+      "text_only_answer": "The **H100 SXM5** uses **HBM3 memory** and delivers **over 3 TB/sec of memory bandwidth**.  \nThis is stated in the text on **page 15**. The page\u2019s section on \u201cH100 SXM5 GPU\u201d also describes the SXM5 board as housing H100 GPU and HBM3 memory stacks.\n\nIf you meant **memory data rate** in terms of bandwidth, the answer is **over 3 TB/s**.",
+      "multimodal_answer": "The **H100 SXM5** has a **memory data rate of 2619 MHz DDR**.\n\nThis is shown in the table on **page 40**, where the **Memory Data Rate** row lists **2619 MHz DDR** under the **H100 SXM5** column.",
+      "text_only_correct": false,
+      "multimodal_correct": true
+    },
+    {
+      "question": "What is the peak FP8 Tensor TFLOPS of H100?",
+      "text_only_answer": "The **peak FP8 Tensor TFLOPS** of the NVIDIA H100 is **1978.9 TFLOPS** on **H100 SXM5**, and **1513 TFLOPS** on **H100 PCIe**. With **sparsity enabled**, the effective peak is **3957.8 TFLOPS** (SXM5) and **3026 TFLOPS** (PCIe). This is shown in **Table 1 on page 20**.",
+      "multimodal_answer": "The **peak FP8 Tensor Core performance of the H100 SXM5** is **1978.9 TFLOPS**, or **3957.8 TFLOPS with sparsity**. On the **H100 PCIe**, it is **1513 TFLOPS** or **3026 TFLOPS with sparsity**.\n\nThis is shown in **Table 1 on page 20**, where the row **\u201cPeak FP8 Tensor Core\u201d** lists those values.",
+      "text_only_correct": true,
+      "multimodal_correct": true
+    }
+  ]
+}
