@@ -79,6 +79,15 @@ function App() {
         <NavBar />
         <div className="flex min-h-[calc(100vh-73px)] items-center px-6 py-10">
           <div className="mx-auto w-full max-w-5xl">
+            <div className="mb-8 text-center">
+              <div className="mb-2 text-3xl font-semibold text-white">
+                Ask questions about diagrams and charts — not just text.
+              </div>
+              <div className="mb-8 text-slate-400">
+                Upload a PDF or try the NVIDIA H100 demo instantly.
+              </div>
+            </div>
+
             {error && (
               <div className="mb-4 rounded-lg border border-red-900/70 bg-red-950/50 px-4 py-3 text-sm text-red-300">
                 {error}
@@ -89,6 +98,32 @@ function App() {
               <PDFUploader onIngested={handleIngested} />
               <DocumentList docs={docs} selected={docId} onSelect={setDocId} />
             </div>
+
+            <section className="mt-8 rounded-xl border border-[#2d3148] bg-[#1a1d27] p-5 shadow-lg">
+              <div className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-400">
+                How it works
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-300">
+                {[
+                  "PDF",
+                  "ColPali (patch embeddings)",
+                  "Qdrant (image_index)",
+                  "BGE-M3 (text chunks)",
+                  "Qdrant (text_index)",
+                  "Query",
+                  "MaxSim retrieval",
+                  "GPT Vision",
+                  "Answer",
+                ].map((step, index, steps) => (
+                  <div key={step} className="flex items-center gap-2">
+                    <span className="rounded-full border border-[#3d4166] bg-[#12141f] px-3 py-1.5">
+                      {step}
+                    </span>
+                    {index < steps.length - 1 && <span className="text-slate-500">→</span>}
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         </div>
       </main>
