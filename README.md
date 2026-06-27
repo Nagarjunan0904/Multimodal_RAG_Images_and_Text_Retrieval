@@ -1,4 +1,4 @@
-# Multimodal RAG — Ask questions about diagrams and charts, not just text.
+# Multimodal RAG - Ask questions about diagrams and charts, not just text.
 
 > **[Live Demo](https://multimodal-rag-images-and-text-retrieval.vercel.app)**  
 > Backend: Railway · Vector DB: Qdrant Cloud · Frontend: Vercel
