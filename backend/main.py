@@ -1,9 +1,10 @@
+from enum import Enum
 from pathlib import Path
 import json
 import time
 import uuid
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,11 +12,20 @@ from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from backend.generator import generate_answer
 from backend.models.config import Settings
-from backend.models.schemas import IngestResponse, QueryRequest, QueryResponse
+from backend.models.schemas import QueryRequest, QueryResponse
 from backend.qdrant_client import get_qdrant_client
 from backend.retriever import MultimodalRetriever, ingest_and_index
 from eval.logger import EvalLogger
 
+
+class JobStatus(str, Enum):
+    pending = "pending"
+    running = "running"
+    done = "done"
+    failed = "failed"
+
+
+jobs: dict[str, dict] = {}
 
 app = FastAPI(title="Multimodal RAG API")
 
@@ -40,19 +50,45 @@ retriever = MultimodalRetriever(qdrant_client=qdrant, settings=settings)
 logger = EvalLogger(db_path=Path("eval.db"))
 
 
-@app.post("/ingest", response_model=IngestResponse)
-async def ingest(file: UploadFile) -> IngestResponse:
+def run_ingestion(file_bytes: bytes, job_id: str, doc_id: str) -> None:
     try:
-        file_bytes = await file.read()
-        doc_id = str(uuid.uuid4())
+        jobs[job_id]["status"] = JobStatus.running
         result = ingest_and_index(file_bytes, doc_id, qdrant, settings)
-        return IngestResponse(
-            doc_id=doc_id,
-            num_pages=result["num_pages"],
-            num_chunks=result["num_chunks"],
+        jobs[job_id].update(
+            {
+                "status": JobStatus.done,
+                "doc_id": doc_id,
+                "num_pages": result["num_pages"],
+                "num_chunks": result["num_chunks"],
+            }
         )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as e:
+        jobs[job_id]["status"] = JobStatus.failed
+        jobs[job_id]["error"] = str(e)
+
+
+@app.post("/ingest")
+async def ingest(file: UploadFile, background_tasks: BackgroundTasks) -> dict:
+    file_bytes = await file.read()
+    doc_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {
+        "status": JobStatus.pending,
+        "doc_id": doc_id,
+        "num_pages": None,
+        "num_chunks": None,
+        "error": None,
+    }
+    background_tasks.add_task(run_ingestion, file_bytes, job_id, doc_id)
+    return {"job_id": job_id, "status": JobStatus.pending}
+
+
+@app.get("/ingest/status/{job_id}")
+def ingest_status(job_id: str) -> dict:
+    job = jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="job_id not found")
+    return job
 
 
 @app.post("/query", response_model=QueryResponse)

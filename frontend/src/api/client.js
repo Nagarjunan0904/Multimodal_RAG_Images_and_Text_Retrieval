@@ -13,6 +13,11 @@ export async function ingestPdf(file, onProgress) {
   })
 }
 
+export async function getIngestStatus(job_id) {
+  const res = await fetch(`${BASE}/ingest/status/${job_id}`)
+  return res.json()
+}
+
 export async function getDocuments() {
   const res = await fetch(`${BASE}/documents`)
   return res.json()

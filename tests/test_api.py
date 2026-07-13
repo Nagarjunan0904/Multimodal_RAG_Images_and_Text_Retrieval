@@ -31,9 +31,22 @@ def test_ingest_endpoint(client: TestClient) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["doc_id"]
-    assert body["num_pages"] == 1
-    assert body["num_chunks"] == 2
+    assert body["job_id"]
+    assert body["status"] == "pending"
+
+    status_response = client.get(f"/ingest/status/{body['job_id']}")
+    assert status_response.status_code == 200
+    status_body = status_response.json()
+    assert status_body["status"] == "done"
+    assert status_body["doc_id"]
+    assert status_body["num_pages"] == 1
+    assert status_body["num_chunks"] == 2
+
+
+def test_ingest_status_not_found(client: TestClient) -> None:
+    response = client.get("/ingest/status/does-not-exist")
+
+    assert response.status_code == 404
 
 
 def test_query_endpoint(client: TestClient) -> None:

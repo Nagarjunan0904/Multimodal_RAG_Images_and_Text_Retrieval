@@ -1,17 +1,50 @@
 import axios from "axios"
-import { useRef, useState } from "react"
-import { BASE } from "../api/client"
+import { useEffect, useRef, useState } from "react"
+import { BASE, getIngestStatus } from "../api/client"
 
 const DEMO_DOC_ID = "bffb0169-aa17-401e-82d9-2f972556a2b0"
+const POLL_INTERVAL_MS = 5000
 
 function PDFUploader({ onIngested }) {
   const inputRef = useRef(null)
+  const pollRef = useRef(null)
   const [file, setFile] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [progress, setProgress] = useState(0)
   const [status, setStatus] = useState("idle")
   const [result, setResult] = useState(null)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    return () => clearInterval(pollRef.current)
+  }, [])
+
+  const stopPolling = () => {
+    clearInterval(pollRef.current)
+    pollRef.current = null
+  }
+
+  const pollJob = jobId => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const job = await getIngestStatus(jobId)
+        setStatus(job.status)
+
+        if (job.status === "done") {
+          stopPolling()
+          setResult(job)
+          onIngested?.(job.doc_id, job.num_pages, job.num_chunks)
+        } else if (job.status === "failed") {
+          stopPolling()
+          setError(job.error ?? "Ingestion failed")
+        }
+      } catch (err) {
+        stopPolling()
+        setStatus("error")
+        setError(err.message ?? "Failed to fetch job status")
+      }
+    }, POLL_INTERVAL_MS)
+  }
 
   const selectFile = nextFile => {
     if (!nextFile) return
@@ -23,7 +56,7 @@ function PDFUploader({ onIngested }) {
   }
 
   const upload = async () => {
-    if (!file || status === "uploading" || status === "indexing") return
+    if (!file || status === "uploading" || status === "pending" || status === "running") return
 
     const formData = new FormData()
     formData.append("file", file)
@@ -36,13 +69,11 @@ function PDFUploader({ onIngested }) {
       const response = await axios.post(`${BASE}/ingest`, formData, {
         onUploadProgress: e => {
           setProgress(e.total > 0 ? (e.loaded / e.total) * 100 : 50)
-          if (e.total > 0 && e.loaded >= e.total) setStatus("indexing")
         },
       })
-      setStatus("done")
+      setStatus("pending")
       setProgress(100)
-      setResult(response.data)
-      onIngested?.(response.data.doc_id, response.data.num_pages, response.data.num_chunks)
+      pollJob(response.data.job_id)
     } catch (err) {
       setStatus("error")
       setError(err.response?.data?.detail ?? err.message ?? "Upload failed")
@@ -102,7 +133,7 @@ function PDFUploader({ onIngested }) {
         <button
           type="button"
           onClick={upload}
-          disabled={!file || status === "uploading" || status === "indexing"}
+          disabled={!file || status === "uploading" || status === "pending" || status === "running"}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-[#3d4166] disabled:text-slate-500"
         >
           {status === "uploading" ? "Uploading..." : "Upload document"}
@@ -116,23 +147,30 @@ function PDFUploader({ onIngested }) {
         </button>
       </div>
 
-      {(status === "uploading" || status === "indexing") && (
+      {status === "uploading" && (
         <div className="mt-4">
           <div className="h-2 overflow-hidden rounded-full bg-[#12141f]">
             <div className="h-full bg-indigo-500 transition-all" style={{ width: `${progress}%` }} />
           </div>
-          {status === "indexing" && (
-            <p className="mt-2 animate-pulse text-sm text-indigo-300">Indexing pages...</p>
-          )}
         </div>
       )}
 
-      {status === "done" && result && (
-        <p className="mt-4 text-sm font-medium text-indigo-300">
-          Indexed {result.num_pages} pages, {result.num_chunks} text chunks
+      {status === "pending" && (
+        <p className="mt-4 animate-pulse text-sm text-indigo-300">Queued for processing...</p>
+      )}
+      {status === "running" && (
+        <p className="mt-4 animate-pulse text-sm text-indigo-300">
+          Indexing pages... (this takes ~8 min on CPU)
         </p>
       )}
-      {status === "error" && <p className="mt-4 text-sm font-medium text-red-300">{error}</p>}
+      {status === "done" && result && (
+        <p className="mt-4 text-sm font-medium text-indigo-300">
+          Indexed {result.num_pages} pages, {result.num_chunks} chunks
+        </p>
+      )}
+      {(status === "failed" || status === "error") && (
+        <p className="mt-4 text-sm font-medium text-red-300">{error}</p>
+      )}
     </section>
   )
 }
