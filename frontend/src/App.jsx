@@ -23,7 +23,9 @@ function App() {
 
     getDocuments()
       .then(data => {
-        if (mounted) setDocs(data.documents ?? [])
+        if (!mounted) return
+        setDocs(data?.documents ?? [])
+        setError(null)
       })
       .catch(err => {
         if (mounted) setError(typeof err === "string" ? err : "Could not load documents")

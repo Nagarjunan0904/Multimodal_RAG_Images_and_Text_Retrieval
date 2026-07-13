@@ -20,6 +20,7 @@ export async function getIngestStatus(job_id) {
 
 export async function getDocuments() {
   const res = await fetch(`${BASE}/documents`)
+  if (!res.ok) throw new Error("Failed to load documents")
   return res.json()
 }
 
