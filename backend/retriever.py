@@ -31,6 +31,7 @@ class MultimodalIndexer:
         self.embed_model = HuggingFaceEmbedding(
             model_name="BAAI/bge-m3",
             cache_folder=str(Path(self.settings.hf_home) / "hub"),
+            trust_remote_code=True,
         )
 
     def index_page_image(
@@ -139,6 +140,7 @@ class MultimodalRetriever:
         self.embed_model = HuggingFaceEmbedding(
             model_name="BAAI/bge-m3",
             cache_folder=str(Path(self.settings.hf_home) / "hub"),
+            trust_remote_code=True,
         )
 
     def retrieve_images(

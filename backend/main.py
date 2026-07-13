@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from enum import Enum
 from pathlib import Path
 import json
@@ -13,7 +14,7 @@ from qdrant_client.models import FieldCondition, Filter, MatchValue
 from backend.generator import generate_answer
 from backend.models.config import Settings
 from backend.models.schemas import QueryRequest, QueryResponse
-from backend.qdrant_client import get_qdrant_client
+from backend.qdrant_client import ensure_collections, get_qdrant_client
 from backend.retriever import MultimodalRetriever, ingest_and_index
 from eval.logger import EvalLogger
 
@@ -26,8 +27,22 @@ class JobStatus(str, Enum):
 
 
 jobs: dict[str, dict] = {}
+app_state: dict = {}
 
-app = FastAPI(title="Multimodal RAG API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = Settings()
+    qdrant = get_qdrant_client(settings)
+    ensure_collections(qdrant)
+    app_state["retriever"] = MultimodalRetriever(qdrant_client=qdrant, settings=settings)
+    app_state["qdrant"] = qdrant
+    app_state["settings"] = settings
+    app_state["logger"] = EvalLogger(db_path=Path("eval.db"))
+    yield
+
+
+app = FastAPI(title="Multimodal RAG API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,20 +55,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-settings = Settings()
 pages_dir = Path("tmp/pages")
 pages_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/pages", StaticFiles(directory=str(pages_dir)), name="pages")
-
-qdrant = get_qdrant_client(settings)
-retriever = MultimodalRetriever(qdrant_client=qdrant, settings=settings)
-logger = EvalLogger(db_path=Path("eval.db"))
 
 
 def run_ingestion(file_bytes: bytes, job_id: str, doc_id: str) -> None:
     try:
         jobs[job_id]["status"] = JobStatus.running
-        result = ingest_and_index(file_bytes, doc_id, qdrant, settings)
+        result = ingest_and_index(file_bytes, doc_id, app_state["qdrant"], app_state["settings"])
         jobs[job_id].update(
             {
                 "status": JobStatus.done,
@@ -98,10 +108,10 @@ async def query(request: QueryRequest) -> QueryResponse:
             raise HTTPException(status_code=422, detail="doc_id not found")
 
         start = time.perf_counter()
-        result = retriever.retrieve(request.query, top_k=5, doc_id=request.doc_id)
+        result = app_state["retriever"].retrieve(request.query, top_k=5, doc_id=request.doc_id)
         gen = await generate_answer(request.query, result, stream=False)
         latency_ms = (time.perf_counter() - start) * 1000
-        logger.log(request.query, request.doc_id, result, latency_ms, gen.used_image)
+        app_state["logger"].log(request.query, request.doc_id, result, latency_ms, gen.used_image)
 
         return QueryResponse(
             answer=gen.answer,
@@ -122,7 +132,7 @@ async def query_stream(query: str, doc_id: str) -> StreamingResponse:
             yield f"data: {json.dumps({'type': 'status', 'content': 'Retrieving relevant pages...'})}\n\n"
 
             start = time.perf_counter()
-            result = retriever.retrieve(query, top_k=5, doc_id=doc_id)
+            result = app_state["retriever"].retrieve(query, top_k=5, doc_id=doc_id)
 
             yield f"data: {json.dumps({'type': 'sources', 'pages': result.top_pages, 'chunks': result.top_chunks})}\n\n"
 
@@ -144,6 +154,8 @@ async def query_stream(query: str, doc_id: str) -> StreamingResponse:
 
 @app.get("/documents")
 def documents() -> dict[str, list[str]]:
+    qdrant = app_state["qdrant"]
+    settings = app_state["settings"]
     doc_ids = set()
     offset = None
 
@@ -167,10 +179,12 @@ def documents() -> dict[str, list[str]]:
 
 @app.get("/eval")
 def eval_stats() -> dict:
-    return logger.get_stats()
+    return app_state["logger"].get_stats()
 
 
 def _doc_id_exists(doc_id: str) -> bool:
+    qdrant = app_state["qdrant"]
+    settings = app_state["settings"]
     points, _ = qdrant.scroll(
         collection_name=settings.image_collection,
         scroll_filter=Filter(
@@ -192,14 +206,15 @@ if __name__ == "__main__":
 
     from dotenv import load_dotenv
 
-    from backend.qdrant_client import ensure_collections
-
     if len(sys.argv) < 2:
         print("Error: missing PDF path. Usage: python -m backend.main <path-to-pdf>")
         raise SystemExit(1)
 
     load_dotenv()
-    ensure_collections(qdrant)
+
+    cli_settings = Settings()
+    cli_qdrant = get_qdrant_client(cli_settings)
+    ensure_collections(cli_qdrant)
 
     pdf_path = Path(sys.argv[1])
     file_bytes = pdf_path.read_bytes()
@@ -208,15 +223,15 @@ if __name__ == "__main__":
     print(f"doc_id: {doc_id}")
 
     start = time.perf_counter()
-    result = ingest_and_index(file_bytes, doc_id, qdrant, settings)
+    result = ingest_and_index(file_bytes, doc_id, cli_qdrant, cli_settings)
     elapsed = time.perf_counter() - start
 
     print(f"Pages indexed:      {result['num_pages']}")
     print(f"Text chunks indexed:{len(result['text_chunks'])}")
     print(f"Time elapsed:       {elapsed:.2f}s")
 
-    img_count = qdrant.count(collection_name=settings.image_collection).count
-    txt_count = qdrant.count(collection_name=settings.text_collection).count
+    img_count = cli_qdrant.count(collection_name=cli_settings.image_collection).count
+    txt_count = cli_qdrant.count(collection_name=cli_settings.text_collection).count
     print(f"Qdrant image_index points: {img_count}")
     print(f"Qdrant text_index points:  {txt_count}")
     if img_count < result["num_pages"]:

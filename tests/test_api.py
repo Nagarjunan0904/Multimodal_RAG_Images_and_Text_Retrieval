@@ -20,7 +20,8 @@ def client(monkeypatch) -> TestClient:
     sys.modules.pop("backend.main", None)
 
     main = importlib.import_module("backend.main")
-    return TestClient(main.app)
+    with TestClient(main.app) as test_client:
+        yield test_client
 
 
 def test_ingest_endpoint(client: TestClient) -> None:
