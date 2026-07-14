@@ -2,7 +2,7 @@ import axios from "axios"
 import { useEffect, useRef, useState } from "react"
 import { BASE, getIngestStatus } from "../api/client"
 
-const DEMO_DOC_ID = "bffb0169-aa17-401e-82d9-2f972556a2b0"
+const DEMO_DOC_ID = "a7d53286-7c51-45e6-9020-3be41a2d06eb"
 const POLL_INTERVAL_MS = 5000
 
 function PDFUploader({ onIngested }) {
