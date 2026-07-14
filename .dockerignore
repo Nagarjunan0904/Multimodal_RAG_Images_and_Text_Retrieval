@@ -1,0 +1,19 @@
+In the project root, create .dockerignore with:
+
+.env
+.env.*
+.venv/
+.git/
+.gitignore
+frontend/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+tmp/
+.vscode/
+*.egg-info/
+build/
+dist/
+D:/
