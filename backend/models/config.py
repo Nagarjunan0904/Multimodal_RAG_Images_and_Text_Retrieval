@@ -6,12 +6,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     openai_api_key: str
-    qdrant_url: str = "http://localhost:6333"
+    qdrant_url: str = Field(
+        default="http://localhost:6333",
+        validation_alias="QDRANT_URL",
+    )
     qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
     image_collection: str = "image_index"
     text_collection: str = "text_index"
     colpali_model: str = "vidore/colpali-v1.2"
-    embed_device: str = "cuda"
+    embed_device: str = Field(
+        default="cpu",
+        validation_alias="EMBED_DEVICE",
+    )
     generation_model: str = "gpt-5.4-mini-2026-03-17"
     hf_home: str = Field(
         default="D:/AI_ML/Models/huggingface_cache",
