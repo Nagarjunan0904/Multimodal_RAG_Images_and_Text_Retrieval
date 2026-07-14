@@ -34,7 +34,6 @@ app_state: dict = {}
 async def lifespan(app: FastAPI):
     settings = Settings()
     qdrant = get_qdrant_client(settings)
-    ensure_collections(qdrant)
     app_state["retriever"] = MultimodalRetriever(qdrant_client=qdrant, settings=settings)
     app_state["qdrant"] = qdrant
     app_state["settings"] = settings
