@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { getDocuments, streamQuery } from "./api/client"
+import { getDocuments, postQuery } from "./api/client"
 import AnswerPanel from "./components/AnswerPanel"
 import DocumentList from "./components/DocumentList"
 import PDFUploader from "./components/PDFUploader"
@@ -41,7 +41,7 @@ function App() {
     setDocs(prev => (prev.includes(newDocId) ? prev : [newDocId, ...prev]))
   }
 
-  const handleQuery = (nextQuery) => {
+  const handleQuery = async (nextQuery) => {
     if (!docId) return
 
     setQuery(nextQuery)
@@ -53,26 +53,16 @@ function App() {
     setError(null)
     setSources({ pages: [], chunks: [] })
 
-    streamQuery(
-      nextQuery,
-      docId,
-      (pages, chunks) => {
-        setSources({ pages, chunks })
-        setUsedImage(pages.length > 0)
-      },
-      token => setAnswer(prev => prev + token),
-      ms => {
-        setLatency(ms)
-        setLoading(false)
-        setSseStatus(null)
-      },
-      err => {
-        setError(err)
-        setLoading(false)
-        setSseStatus(null)
-      },
-      status => setSseStatus(status),
-    )
+    try {
+      const result = await postQuery(nextQuery, docId)
+      setAnswer(result.answer)
+      setSources({ pages: result.sources, chunks: [] })
+      setLatency(result.latency_ms)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (docId === null) {
