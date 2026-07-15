@@ -90,32 +90,6 @@ function App() {
               <PDFUploader onIngested={handleIngested} />
               <DocumentList docs={docs} selected={docId} onSelect={setDocId} />
             </div>
-
-            <section className="mt-8 rounded-xl border border-[#2d3148] bg-[#1a1d27] p-5 shadow-lg">
-              <div className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-400">
-                How it works
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-300">
-                {[
-                  "PDF",
-                  "ColPali (patch embeddings)",
-                  "Qdrant (image_index)",
-                  "BGE-M3 (text chunks)",
-                  "Qdrant (text_index)",
-                  "Query",
-                  "MaxSim retrieval",
-                  "GPT Vision",
-                  "Answer",
-                ].map((step, index, steps) => (
-                  <div key={step} className="flex items-center gap-2">
-                    <span className="rounded-full border border-[#3d4166] bg-[#12141f] px-3 py-1.5">
-                      {step}
-                    </span>
-                    {index < steps.length - 1 && <span className="text-slate-500">→</span>}
-                  </div>
-                ))}
-              </div>
-            </section>
           </div>
         </div>
       </main>
