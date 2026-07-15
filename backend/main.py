@@ -68,7 +68,7 @@ def run_ingestion(file_bytes: bytes, job_id: str, doc_id: str) -> None:
                 "status": JobStatus.done,
                 "doc_id": doc_id,
                 "num_pages": result["num_pages"],
-                "num_chunks": result["num_chunks"],
+                "num_chunks": len(result["text_chunks"]),
             }
         )
     except Exception as e:
